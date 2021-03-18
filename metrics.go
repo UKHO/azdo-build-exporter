@@ -13,18 +13,34 @@ var (
 		nil,
 	)
 
-	buildCount = prometheus.NewDesc(
-		"azdo_build_count",
-		"Total Builds in Project",
-		[]string{"Project"},
-		nil,
-	)
 	buildTimeToCompleteDesc = prometheus.NewDesc(
 		"azdo_build_time_in_seconds",
 		"Build time in seconds",
 		[]string{"Project", "BuildId", "BuildNumber", "DefinitionId", "DefinitionName","status","result"},
 		nil,
 	)
+
+	totalJobsDesc = prometheus.NewDesc(
+		"azdo_build_count",
+		"Total of builds for project",
+		[]string{"project"},
+		nil,
+	)
+
+	queuedJobsDesc = prometheus.NewDesc(
+		"azdo_build_queued_count",
+		"Total of queued builds for project",
+		[]string{"project"},
+		nil,
+	)
+
+	runningJobsDesc = prometheus.NewDesc(
+		"azdo_build_running_jobs",
+		"Total of running builds for project",
+		[]string{"project"},
+		nil,
+	)
+
 )
 
 func calculateBuckets() []float64 {
@@ -51,18 +67,9 @@ func calculateBuildMetrics(mc metricsContext) []prometheus.Metric {
 
 	promMetrics := []prometheus.Metric{}
 
-	buildCountMetric := prometheus.MustNewConstMetric(
-		buildCount,
-		prometheus.GaugeValue,
-		float64(len(mc.Builds)),
-		mc.Project.Name,
-	)
-
-	promMetrics = append(promMetrics,buildCountMetric)
-
 	for _,build := range mc.Builds {
 		var buildTime = build.FinishTime.Sub(build.StartTime)
-	createMetric := prometheus.MustNewConstMetric(
+		createMetric := prometheus.MustNewConstMetric(
 		buildTimeToCompleteDesc,
 					prometheus.GaugeValue,
 					float64(buildTime.Seconds()),
@@ -126,3 +133,42 @@ func calculateHistograms(metricContext metricsContext) []prometheus.Metric {
 		jobTimes,
 	}
 }
+
+func calculateQueueMetrics(metricContext metricsContext) []prometheus.Metric {
+
+	queuedTotal := 0
+	runningTotal := 0
+
+	for _, currentBuild := range metricContext.Current {
+		if currentBuild.StartTime.IsZero() { //Then the job hasn't started and is therefore queued
+			queuedTotal++
+		} else {
+			runningTotal++
+		}
+	}
+
+	calculatedMetrics := []prometheus.Metric{
+		prometheus.MustNewConstMetric(
+			totalJobsDesc,
+			prometheus.GaugeValue,
+			float64(len(metricContext.Current)),
+			metricContext.Project.Name,
+		),
+		prometheus.MustNewConstMetric(
+			runningJobsDesc,
+			prometheus.GaugeValue,
+			float64(runningTotal),
+			metricContext.Project.Name,
+		),
+		prometheus.MustNewConstMetric(
+			queuedJobsDesc,
+			prometheus.GaugeValue,
+			float64(queuedTotal),
+			metricContext.Project.Name,
+		),
+	}
+
+	return calculatedMetrics
+
+}
+

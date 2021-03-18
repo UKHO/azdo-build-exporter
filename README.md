@@ -66,11 +66,10 @@ Access tokens for Azure DevOps should be provided using environment variables. T
 
 The default port and url where the metrics are exposed is `:8080/metrics`
 
-The speed of the return is dependant on the number of Tags and the number of Projects, if you wish to pick a selection of projects or tags to pick up, simply add a Tags array (`Tags = ["Tag1"]`) property to the toml config file, the same goes for the Projects (`Projects = ["ProjectName"]).
+The speed of the return is dependant on the number of Tags and the number of Projects, if you wish to pick a selection of projects to pick up, simply add a Projects array to the toml config file (`Projects = ["ProjectName"]).
 
 For Azure DevOps Services, this is an and / or setup, you do not need both, you can use the Tags array property and not the Project array and be fine.
 
-For Azure DevOps Server `Tags` and the `ApiVersion` MUST be provided
 
 ### Basic Configuration
 

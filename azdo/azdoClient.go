@@ -63,7 +63,7 @@ func (az *AzDoClient) GetProjects() ([]Project, error) {
 	return are.Projects, nil
 }
 
-func (az *AzDoClient) GetBuilds(projectName string) ([]Build, error) {
+func (az *AzDoClient) GetBuilds(projectName string, after time.Time) (finishedBuilds, currentBuilds []Build, err error) {
 
 	log.WithFields(log.Fields{"serverName": az.Name, "project": projectName}).Info("Get Builds")
 
@@ -85,20 +85,31 @@ func (az *AzDoClient) GetBuilds(projectName string) ([]Build, error) {
 
 		if err != nil {
 			log.Error(err)
-			return []Build{}, err
+			return []Build{},[]Build{}, err
 		}
 
 		are := buildResponseEnvelope{}
 		err = json.Unmarshal(responseData, &are)
 		if err != nil {
 			log.Error(err)
-			return []Build{}, err
+			return []Build{},[]Build{}, err
 		}
 
 		var builds = are.Builds
-
-		log.WithFields(log.Fields{"serverName": az.Name, "project": projectName}).Info(builds)
-		return builds, nil
+		for _, job := range builds {
+			if job.FinishTime.IsZero() {
+				currentBuilds = append(currentBuilds, job)
+				continue
+			}
+	
+			if !after.IsZero() {
+				if job.FinishTime.After(after) {
+					finishedBuilds = append(finishedBuilds, job)
+				}
+			}
+		}
+	
+		return finishedBuilds, currentBuilds, nil
 }
 
 func (az *AzDoClient) makeRequest(req *http.Request) ([]byte, error) {

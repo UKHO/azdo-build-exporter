@@ -69,13 +69,13 @@ func (azc *azDoCollector) scrapeBuilds(projects []azdo.Project) (<-chan metricsC
 		wg.Add(1)
 		go func(p azdo.Project) {
 			log.Info(p.Name)
-			builds, err := azc.AzDoClient.GetBuilds(p.Name)
-			log.Info(builds)
+			finishedBuilds,currentBuilds, err := azc.AzDoClient.GetBuilds(p.Name,azc.lastScrape)
+			log.Info(len(finishedBuilds))
 			if err != nil {
 				errOccurred = true
 			}
 
-			metrics <- metricsContext{Project:p, Builds: builds}
+			metrics <- metricsContext{Project:p, Builds: finishedBuilds, Current: currentBuilds}
 			wg.Done()
 		}(project)
 	}
@@ -108,4 +108,5 @@ func (azc *azDoCollector) calculateMetrics(metricsContextChanIn <-chan metricsCo
 type metricsContext struct {
 	Project azdo.Project
 	Builds   []azdo.Build
+	Current []azdo.Build
 }
