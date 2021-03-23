@@ -3,17 +3,27 @@ trigger:
 
 pool:
   vmImage: 'ubuntu-latest'
-
-steps:
-- task: Docker@2
-  inputs:
-    command: login
-    containerRegistry: $(dockerserviceconnection)
-  displayName: Login to dockerhub
-- script: |
-    docker build -t ukhydrographicoffice/azdobuildexporter .
-  displayName: 'Build exporter and image'
-- script: |
-    docker push ukhydrographicoffice/azdobuildexporter
-  displayName: 'Push image'
-
+jobs:
+- job: container
+  steps:
+  - task: Docker@2
+    inputs:
+      command: login
+      containerRegistry: $(dockerserviceconnection)
+    displayName: Login to dockerhub
+  - script: |
+      docker build -t ukhydrographicoffice/azdobuildexporter .
+    displayName: 'Build exporter and image'
+  - script: |
+      docker push ukhydrographicoffice/azdobuildexporter
+    displayName: 'Push image'
+- job: exporterexe
+  pool:
+    vmImage: 'windows-latest'
+  container: golang:latest
+  steps:
+  - script: |
+      go get
+      go build .
+  - publish: $(Build.SourcesDirectory)/*.exe
+    artifact: executable
