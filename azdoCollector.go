@@ -70,7 +70,6 @@ func (azc *azDoCollector) scrapeBuilds(projects []azdo.Project) (<-chan metricsC
 		go func(p azdo.Project) {
 			log.Info(p.Name)
 			finishedBuilds,currentBuilds, err := azc.AzDoClient.GetBuilds(p.Name,azc.lastScrape)
-			log.Info(len(finishedBuilds))
 			if err != nil {
 				errOccurred = true
 			}
