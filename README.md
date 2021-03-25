@@ -70,7 +70,6 @@ The speed of the return is dependant on the number of Tags and the number of Pro
 
 For Azure DevOps Services, this is an and / or setup, you do not need both, you can use the Tags array property and not the Project array and be fine.
 
-
 ### Basic Configuration
 
 ```toml
@@ -137,3 +136,31 @@ Set the Prometheus scrape timeout to be larger than 10 seconds as scrapes can so
 
 ## Metrics Exposed
 
+- azdo_build_build_total_scrape_duration_seconds
+  - Total time for scrape, Has labels of `name`
+- azdo_build_count
+  - total builds per project. Has labels of `name, project`
+- azdo_build_queue_length_secs_bucket
+  - queue length buckets per project, part of histogram. Has labels of `name, project, le`
+- azdo_build_queue_length_secs_sum
+  - sum of queue length, part of histogram. Has labels of `name,project`
+- azdo_build_queue_length_secs_count
+  - count of items in queue, part of histogram. Has labels of `name,project`
+- azdo_build_queued_count
+  - count of builds in queue. Has labels of `name,project`
+- azdo_build_running_in_seconds
+  - Time build is taking to run in seconds. Has labels of `name, Project, BuildId,BuildNumber, DefinitionId, DefinitionName,results,status`
+- azdo_build_running_jobs
+  - count of running build job. Has labels of `name, project`
+- azdo_build_running_length_secs_bucket
+  - running length buckets per project, part of histogram. Has labels of `name, project, le`
+- azdo_build_running_length_secs_count
+  - count of running builds per project, part of histogram. Has labels of `name, project`
+- azdo_build_running_length_secs_sum
+  - sum of time for running builds per project, part of histogram. Has labels of `name, project`
+- azdo_build_total_length_secs_bucket
+  - bucket time for completed builds, part of histogram. Has labels of `name, project, le`
+- azdo_build_total_length_secs_sum
+  - sum of time for completed builds, part of histogram. Has labels of `name, project`
+- azdo_build_total_length_secs_count
+  - count of completed builds, part of histogram. Has labels of `name, project`
