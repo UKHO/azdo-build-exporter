@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
+	"time"
 )
 
 var (
@@ -20,7 +21,14 @@ var (
 		nil,
 	)
 
-	totalJobsDesc = prometheus.NewDesc(
+	buildTimeRunningDesc = prometheus.NewDesc(
+		"azdo_build_running_in_seconds",
+		"Build running in seconds",
+		[]string{"Project", "BuildId", "BuildNumber", "DefinitionId", "DefinitionName","status","result"},
+		nil,
+	)
+
+	buildTotalDesc = prometheus.NewDesc(
 		"azdo_build_count",
 		"Total of builds for project",
 		[]string{"project"},
@@ -70,22 +78,42 @@ func calculateBuildMetrics(mc metricsContext) []prometheus.Metric {
 	for _,build := range mc.Builds {
 		var buildTime = build.FinishTime.Sub(build.StartTime)
 		createMetric := prometheus.MustNewConstMetric(
-		buildTimeToCompleteDesc,
-					prometheus.GaugeValue,
-					float64(buildTime.Seconds()),
-					mc.Project.Name,
-					strconv.Itoa(build.Id),
-					build.Number,
-					strconv.Itoa(build.Definition.Id),
-					build.Definition.Name,
-					build.Status,
-					build.Result,
-				)
+			buildTimeToCompleteDesc,
+			prometheus.GaugeValue,
+			float64(buildTime.Seconds()),
+			mc.Project.Name,
+			strconv.Itoa(build.Id),
+			build.Number,
+			strconv.Itoa(build.Definition.Id),
+			build.Definition.Name,
+			build.Status,
+			build.Result,
+		)
 
-				promMetrics = append(promMetrics, createMetric)
-			}
+		promMetrics = append(promMetrics, createMetric)
+	}
 
-			promMetrics = append(promMetrics, calculateHistograms(mc)...)
+	for _,build := range mc.Current {
+		var buildTime = time.Now().Sub(build.StartTime)
+		createMetric := prometheus.MustNewConstMetric(
+			buildTimeRunningDesc,
+			prometheus.GaugeValue,
+			float64(buildTime.Seconds()),
+			mc.Project.Name,
+			strconv.Itoa(build.Id),
+			build.Number,
+			strconv.Itoa(build.Definition.Id),
+			build.Definition.Name,
+			build.Status,
+			build.Result,
+		)
+
+		promMetrics = append(promMetrics, createMetric)
+	}
+
+		promMetrics = append(promMetrics, calculateHistograms(mc)...)
+		promMetrics = append(promMetrics, calculateQueueMetrics(mc)...)
+
 
 	return promMetrics
 }
@@ -149,9 +177,9 @@ func calculateQueueMetrics(metricContext metricsContext) []prometheus.Metric {
 
 	calculatedMetrics := []prometheus.Metric{
 		prometheus.MustNewConstMetric(
-			totalJobsDesc,
+			buildTotalDesc,
 			prometheus.GaugeValue,
-			float64(len(metricContext.Current)),
+			float64(len(metricContext.Current) + len(metricContext.Builds)),
 			metricContext.Project.Name,
 		),
 		prometheus.MustNewConstMetric(
