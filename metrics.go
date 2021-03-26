@@ -15,8 +15,15 @@ var (
 	)
 
 	buildTimeToCompleteDesc = prometheus.NewDesc(
-		"azdo_build_time_in_seconds",
-		"Build time in seconds",
+		"azdo_build_complete_in_seconds",
+		"Build complete in seconds",
+		[]string{"Project", "BuildId", "BuildNumber", "DefinitionId", "DefinitionName","status","result"},
+		nil,
+	)
+
+	buildTimeQueuedDesc = prometheus.NewDesc(
+		"azdo_build_queued_in_seconds",
+		"Build queued in seconds",
 		[]string{"Project", "BuildId", "BuildNumber", "DefinitionId", "DefinitionName","status","result"},
 		nil,
 	)
@@ -43,7 +50,7 @@ var (
 	)
 
 	runningJobsDesc = prometheus.NewDesc(
-		"azdo_build_running_jobs",
+		"azdo_build_running_count",
 		"Total of running builds for project",
 		[]string{"project"},
 		nil,
@@ -94,26 +101,41 @@ func calculateBuildMetrics(mc metricsContext) []prometheus.Metric {
 	}
 
 	for _,build := range mc.Current {
-		var buildTime = time.Now().Sub(build.StartTime)
-		createMetric := prometheus.MustNewConstMetric(
-			buildTimeRunningDesc,
-			prometheus.GaugeValue,
-			float64(buildTime.Seconds()),
-			mc.Project.Name,
-			strconv.Itoa(build.Id),
-			build.Number,
-			strconv.Itoa(build.Definition.Id),
-			build.Definition.Name,
-			build.Status,
-			build.Result,
-		)
-
-		promMetrics = append(promMetrics, createMetric)
+		if(build.StartTime.IsZero()) {
+			var queueTime = time.Now().Sub(build.QueueTime)
+			createMetric := prometheus.MustNewConstMetric(
+				buildTimeQueuedDesc,
+				prometheus.GaugeValue,
+				float64(queueTime.Seconds()),
+				mc.Project.Name,
+				strconv.Itoa(build.Id),
+				build.Number,
+				strconv.Itoa(build.Definition.Id),
+				build.Definition.Name,
+				build.Status,
+				build.Result,
+			)
+			promMetrics = append(promMetrics, createMetric)
+		} else {
+			var buildTime = time.Now().Sub(build.StartTime)
+			createMetric := prometheus.MustNewConstMetric(
+				buildTimeRunningDesc,
+				prometheus.GaugeValue,
+				float64(buildTime.Seconds()),
+				mc.Project.Name,
+				strconv.Itoa(build.Id),
+				build.Number,
+				strconv.Itoa(build.Definition.Id),
+				build.Definition.Name,
+				build.Status,
+				build.Result,
+			)
+			promMetrics = append(promMetrics, createMetric)
+		}
 	}
 
-		promMetrics = append(promMetrics, calculateHistograms(mc)...)
-		promMetrics = append(promMetrics, calculateQueueMetrics(mc)...)
-
+	promMetrics = append(promMetrics, calculateHistograms(mc)...)
+	promMetrics = append(promMetrics, calculateQueueMetrics(mc)...)
 
 	return promMetrics
 }
