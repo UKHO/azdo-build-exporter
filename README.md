@@ -38,7 +38,7 @@ docker run \
   -p 8080:8080 \
   -e TFSEX_azdo_ACCESSTOKEN=your_access_token_goes_here
   --rm \
-  ukhydrographicoffice/azdobuildexporter
+  ukhydrographicoffice/azdo-build-exporter
 ```
 
 The collected metrics are available at `:8080/metrics`

@@ -12,10 +12,10 @@ jobs:
       containerRegistry: $(dockerserviceconnection)
     displayName: Login to dockerhub
   - script: |
-      docker build -t ukhydrographicoffice/azdobuildexporter .
+      docker build -t ukhydrographicoffice/azdo-build-exporter .
     displayName: 'Build exporter and image'
   - script: |
-      docker push ukhydrographicoffice/azdobuildexporter
+      docker push ukhydrographicoffice/azdo-build-exporter
     displayName: 'Push image'
 - job: exporterexe
   pool:

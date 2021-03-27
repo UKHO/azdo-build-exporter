@@ -3,7 +3,7 @@ package main
 import (
 	"net/url"
 
-	"./azdo"
+	"ukho.gov.uk/azdo-build-exporter/azdo"
 )
 
 var (

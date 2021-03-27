@@ -7,7 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 
-	"./azdo"
+	"ukho.gov.uk/azdo-build-exporter/azdo"
 )
 
 type azDoCollector struct {
