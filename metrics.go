@@ -42,6 +42,27 @@ var (
 		nil,
 	)
 
+	buildResultSuccessDesc = prometheus.NewDesc(
+		"azdo_build_result_success_count",
+		"Build Result Success",
+		[]string{"Project","DefinitionId","DefinitionName"},
+		nil,
+	)
+
+	buildResultFailDesc = prometheus.NewDesc(
+		"azdo_build_result_failed_count",
+		"Build Result Failed",
+		[]string{"Project","DefinitionId","DefinitionName"},
+		nil,
+	)
+
+	buildResultCancelledDesc = prometheus.NewDesc(
+		"azdo_build_result_cancelled_count",
+		"Build Result Cancelled",
+		[]string{"Project","DefinitionId","DefinitionName"},
+		nil,
+	)
+
 	queuedJobsDesc = prometheus.NewDesc(
 		"azdo_build_queued_count",
 		"Total of queued builds for project",
@@ -136,6 +157,7 @@ func calculateBuildMetrics(mc metricsContext) []prometheus.Metric {
 
 	promMetrics = append(promMetrics, calculateHistograms(mc)...)
 	promMetrics = append(promMetrics, calculateQueueMetrics(mc)...)
+	promMetrics = append(promMetrics, calculateBuildResultMetrics(mc)...)
 
 	return promMetrics
 }
@@ -220,5 +242,76 @@ func calculateQueueMetrics(metricContext metricsContext) []prometheus.Metric {
 
 	return calculatedMetrics
 
+}
+
+func calculateBuildResultMetrics(metricContext metricsContext) []prometheus.Metric {
+
+	type buildResultMetric struct {
+		Project string
+		DefinitionId int
+		DefinitionName string
+		Succeeded int
+		Failed int
+		Cancelled int
+	}
+
+	m := make(map[string]buildResultMetric)
+
+	for _, build := range metricContext.Builds {
+		var buildResult = metricContext.Project.Name + strconv.Itoa(build.Definition.Id)
+		metric, ok := m[buildResult]
+		if ok {
+			if(build.Result == "succeeded") {
+				metric.Succeeded++
+			}
+			if(build.Result == "failed") {
+				metric.Failed++
+			}
+			if(build.Result == "cancelled") {
+				metric.Cancelled++
+			}
+		} else {
+			if(build.Result == "succeeded") {
+			metric = buildResultMetric{Succeeded: 1, Failed: 0, Cancelled: 0, Project: metricContext.Project.Name, DefinitionId: build.Definition.Id, DefinitionName: build.Definition.Name}
+			}
+			if(build.Result == "failed") {
+			metric = buildResultMetric{Succeeded: 0, Failed: 1, Cancelled: 0, Project: metricContext.Project.Name, DefinitionId: build.Definition.Id, DefinitionName: build.Definition.Name}
+			}
+			if(build.Result == "cancelled") {
+			metric = buildResultMetric{Succeeded: 0, Failed: 0,Cancelled:1, Project: metricContext.Project.Name, DefinitionId: build.Definition.Id, DefinitionName: build.Definition.Name}
+			}
+		}
+
+		m[buildResult] = metric
+	}
+
+	promMetrics := []prometheus.Metric{}
+	for _, p := range m {
+
+		promMetric := prometheus.MustNewConstMetric(
+			buildResultSuccessDesc,
+			prometheus.GaugeValue,
+			float64(p.Succeeded),
+			p.Project, strconv.Itoa(p.DefinitionId), p.DefinitionName)
+
+		promMetrics = append(promMetrics, promMetric)
+
+		promFailMetric := prometheus.MustNewConstMetric(
+			buildResultFailDesc,
+			prometheus.GaugeValue,
+			float64(p.Failed),
+			p.Project, strconv.Itoa(p.DefinitionId), p.DefinitionName)
+
+		promMetrics = append(promMetrics, promFailMetric)
+
+		promCancelMetric := prometheus.MustNewConstMetric(
+			buildResultCancelledDesc,
+			prometheus.GaugeValue,
+			float64(p.Cancelled),
+			p.Project, strconv.Itoa(p.DefinitionId), p.DefinitionName)
+
+		promMetrics = append(promMetrics, promCancelMetric)
+	}
+	return promMetrics
 }
 
