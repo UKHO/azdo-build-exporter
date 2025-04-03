@@ -34,7 +34,7 @@ Start the container while binding the `config.toml` created above
 
 ```bash
 docker run \
-  -v $(pwd)/config.toml:/config.toml \  
+  --mount type=bind,source=$(pwd)/config.toml,target=/config.toml \  
   -p 8080:8080 \
   -e TFSEX_azdo_ACCESSTOKEN=your_access_token_goes_here
   --rm \
