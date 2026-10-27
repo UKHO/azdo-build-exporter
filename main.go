@@ -122,9 +122,6 @@ func main() {
 	if c.Exporter.RefreshInterval <= 0 {
 		c.Exporter.RefreshInterval = refreshIntervalDefault
 		configLogger.WithField("refreshInterval", c.Exporter.RefreshInterval).Debug("Using default refresh interval")
-	} else if c.Exporter.RefreshInterval < 0 {
-		configLogger.Error("refreshInterval must be a positive duration")
-		configValid = false
 	} else {
 		configLogger.WithField("refreshInterval", c.Exporter.RefreshInterval).Debug("Using refresh interval specified")
 	}
