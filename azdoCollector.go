@@ -13,10 +13,61 @@ import (
 type azDoCollector struct {
 	AzDoClient *azdo.AzDoClient
 	lastScrape time.Time
+
+	mu     sync.RWMutex
+	cached []prometheus.Metric
 }
 
 func newAzDoCollector(az azdo.AzDoClient) *azDoCollector {
 	return &azDoCollector{AzDoClient: &az}
+}
+
+// startRefresh populates the metrics cache immediately and then on every interval tick.
+func (azc *azDoCollector) startRefresh(interval time.Duration) {
+	go func() {
+		azc.refresh()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			azc.refresh()
+		}
+	}()
+}
+
+func (azc *azDoCollector) refresh() {
+	start := time.Now()
+	logger := log.WithFields(log.Fields{"serverName": azc.AzDoClient.Name})
+
+	projects, err := azc.AzDoClient.GetProjects()
+	if err != nil {
+		logger.WithField("error", err).Error("Failed to retrieve projects, keeping cached metrics")
+		return
+	}
+
+	logger.Info("Retrieved Projects")
+
+	chanBuilds, errOccurred := azc.scrapeBuilds(projects)
+	if errOccurred {
+		return
+	}
+
+	var metrics []prometheus.Metric
+	for metric := range azc.calculateMetrics(chanBuilds) {
+		metrics = append(metrics, metric)
+	}
+
+	metrics = append(metrics, prometheus.MustNewConstMetric(
+		totalcollectDurationDesc,
+		prometheus.GaugeValue,
+		time.Since(start).Seconds(),
+	))
+
+	azc.mu.Lock()
+	azc.cached = metrics
+	azc.mu.Unlock()
+
+	azc.lastScrape = start
+	logger.WithField("duration", time.Since(start)).Info("Metrics cache refreshed")
 }
 
 func (azc *azDoCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -24,37 +75,12 @@ func (azc *azDoCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (azc *azDoCollector) Collect(publishMetrics chan<- prometheus.Metric) {
-	
-	start := time.Now()
-	
-	projects,err := azc.AzDoClient.GetProjects()
+	azc.mu.RLock()
+	defer azc.mu.RUnlock()
 
-	if err != nil {
-		return
-	}
-
-	log.WithFields(log.Fields{"serverName": azc.AzDoClient.Name}).Info("Retrieved Projects")
-
-
-	chanBuilds, errOccurred := azc.scrapeBuilds(projects)
-	if errOccurred {
-		return
-	}
-	
-	chanCalculatedMetrics := azc.calculateMetrics(chanBuilds)
-
-	//Publish the buffered metrics
-	for metric := range chanCalculatedMetrics {
+	for _, metric := range azc.cached {
 		publishMetrics <- metric
 	}
-
-	publishMetrics <- prometheus.MustNewConstMetric(
-		totalcollectDurationDesc,
-		prometheus.GaugeValue,
-		time.Since(start).Seconds(),
-	)
-
-	azc.lastScrape = time.Now()
 }
 
 func (azc *azDoCollector) scrapeBuilds(projects []azdo.Project) (<-chan metricsContext,bool) {

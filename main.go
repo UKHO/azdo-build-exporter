@@ -118,6 +118,17 @@ func main() {
 		configLogger.WithField("endpoint", c.Exporter.Endpoint).Debug("Metrics will be exposed on endpoint specified")
 	}
 
+	//Check if the refresh interval has been set
+	if c.Exporter.RefreshInterval <= 0 {
+		c.Exporter.RefreshInterval = refreshIntervalDefault
+		configLogger.WithField("refreshInterval", c.Exporter.RefreshInterval).Debug("Using default refresh interval")
+	} else if c.Exporter.RefreshInterval < 0 {
+		configLogger.Error("refreshInterval must be a positive duration")
+		configValid = false
+	} else {
+		configLogger.WithField("refreshInterval", c.Exporter.RefreshInterval).Debug("Using refresh interval specified")
+	}
+
 	if configValid == false {
 		configLogger.Fatal("Errors found within config")
 		return
@@ -142,6 +153,7 @@ func main() {
 	var reg = prometheus.NewRegistry()
 	for _, tc := range azDoCollectors {
 		prometheus.WrapRegistererWith(prometheus.Labels{"name": tc.AzDoClient.Name}, reg).MustRegister(tc)
+		tc.startRefresh(c.Exporter.RefreshInterval)
 	}
 
 	http.Handle(c.Exporter.Endpoint, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
